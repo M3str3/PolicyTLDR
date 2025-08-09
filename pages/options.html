@@ -1,0 +1,68 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title data-i18n="tabs.settings">Options</title>
+    <link rel="stylesheet" href="../src/styles.css" />
+  </head>
+  <body role="main">
+    <div class="brand-banner" aria-hidden="true">
+      <div>
+        <h1 data-i18n="app.brand">Policy TL;DR</h1>
+        <p data-i18n="options.tagline">Too Long; Didn’t Read... pero sí configuramos tu experiencia</p>
+      </div>
+      <img src="../assets/raccoon.png" alt="Brand raccoon" data-i18n="app.brandAlt" data-i18n-attr="alt" class="mascot-img" />
+    </div>
+    <form id="optionsForm" data-i18n="tabs.settings" data-i18n-attr="aria-label" aria-label="Options">
+      <div class="section">
+        <h2 data-i18n="tabs.settings">Settings</h2>
+        <label for="apiKey" data-i18n="buttons.apiKeyLabel">API Key:</label>
+        <input type="password" id="apiKey" aria-required="true" placeholder="Enter your API key" data-i18n="inputs.apiKeyPlaceholder" data-i18n-attr="placeholder" />
+        <small id="apiKeyHelp"></small>
+      </div>
+
+      <div class="section">
+        <h2 data-i18n="options.languageTitle">Language Settings</h2>
+        <label for="language" data-i18n="buttons.languageLabel">Preferred Language:</label>
+        <select id="language">
+          <option value="" data-i18n="language.autodetect">Auto-detect</option>
+          <option value="en" data-i18n="language.en">English</option>
+          <option value="es" data-i18n="language.es">Español</option>
+          <option value="fr" data-i18n="language.fr">Français</option>
+          <option value="pt" data-i18n="language.pt">Português</option>
+          <option value="de" data-i18n="language.de">Deutsch</option>
+          <option value="it" data-i18n="language.it">Italiano</option>
+        </select>
+        <small data-i18n="buttons.languageHelp">Language for AI responses and summaries</small>
+      </div>
+
+      <div class="section">
+        <h2 data-i18n="buttons.aiSettings">AI Model Settings</h2>
+        <label for="provider" data-i18n="buttons.providerLabel">AI Provider:</label>
+        <select id="provider">
+          <option value="xai">xAI</option>
+          <option value="openai">OpenAI</option>
+        </select>
+        <small data-i18n="buttons.providerHelp">Select the AI service provider</small>
+
+        <label for="model" data-i18n="buttons.modelLabel">Model:</label>
+        <select id="model"></select>
+        <small data-i18n="buttons.modelHelp">Choose a supported model for the selected provider</small>
+
+        <label for="temperature" data-i18n="buttons.temperatureLabel">Temperature:</label>
+        <input type="number" id="temperature" min="0" max="2" step="0.1" placeholder="0.7" />
+        <small data-i18n="buttons.temperatureHelp">Controls randomness (0=deterministic, 2=very random)</small>
+
+        <label for="maxTokens" data-i18n="buttons.maxTokensLabel">Max Tokens:</label>
+        <input type="number" id="maxTokens" min="100" max="4000" step="100" placeholder="1024" />
+        <small data-i18n="buttons.maxTokensHelp">Maximum tokens for AI responses (affects cost and response length)</small>
+      </div>
+
+      <button id="save" type="button" class="btn primary">
+        <span data-i18n="buttons.saveSettings">Save Settings</span>
+      </button>
+    </form>
+
+    <script type="module" src="../src/options.js"></script>
+  </body>
+  </html>

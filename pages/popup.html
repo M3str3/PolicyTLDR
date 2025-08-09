@@ -1,0 +1,74 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title data-i18n="app.brand">Policy TL;DR</title>
+    <link rel="stylesheet" href="../src/styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <div class="header-content">
+          <div class="brand-text">
+            <h1 data-i18n="app.brand">Policy TL;DR</h1>
+            <p id="tagline" class="text-sm" data-i18n="app.subtitle">Obtén resúmenes rápidos de políticas de privacidad</p>
+          </div>
+          <img id="mascotImg" src="../assets/raccoon.png" alt="Brand raccoon" data-i18n="app.brandAlt" data-i18n-attr="alt" class="mascot-img" />
+        </div>
+      </div>
+
+      <div class="tabs">
+        <button class="tab active" id="tab-summary" data-tab="summary">
+          <span data-i18n="tabs.summary">Summary</span>
+        </button>
+        <button class="tab" id="tab-history" data-tab="history">
+          <span data-i18n="tabs.history">History</span>
+        </button>
+        <button class="tab" id="tab-settings" data-i18n="buttons.openSettings" data-i18n-attr="aria-label" aria-label="Open settings">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.983 13.95a1.967 1.967 0 100-3.934 1.967 1.967 0 000 3.934z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.232 12.003a8.25 8.25 0 00-.07-1.089l2.032-1.58a.75.75 0 00.177-1.018l-1.928-3.34a.75.75 0 00-.956-.315l-2.392.96a8.316 8.316 0 00-1.884-1.089l-.36-2.53A.75.75 0 0012.116 1h-3.85a.75.75 0 00-.744.642l-.36 2.53a8.315 8.315 0 00-1.884 1.09l-2.392-.96a.75.75 0 00-.956.314L.002 8.556a.75.75 0 00.177 1.018l2.032 1.58a8.25 8.25 0 000 2.178l-2.032 1.58a.75.75 0 00-.177 1.018l1.928 3.34c.2.346.62.49.956.314l2.392-.96c.58.46 1.21.836 1.884 1.09l.36 2.53a.75.75 0 00.744.642h3.85a.75.75 0 00.744-.642l.36-2.53c.674-.254 1.304-.63 1.884-1.09l2.392.96c.336.176.756.032.956-.314l1.928-3.34a.75.75 0 00-.177-1.018l-2.032-1.58c.046-.36.07-.723.07-1.089z"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="content">
+        <div id="summary" class="tab-content">
+          <div class="flex gap-3">
+            <button id="summarize" class="btn btn-primary">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+              </svg>
+              <span data-i18n="buttons.summarize">Summarize Policy</span>
+            </button>
+          </div>
+
+          <div class="summary-area">
+            <div id="summaryText" class="summary-placeholder">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+              <p class="text-sm" data-i18n="summary.placeholderTitle">No summary available</p>
+              <p class="text-xs text-gray-500" data-i18n="summary.placeholderSubtitle">Click "Summarize Policy" to get started</p>
+            </div>
+          </div>
+        </div>
+
+        <div id="history" class="tab-content hidden">
+          <div id="historyList" class="space-y-3"></div>
+          <div class="flex justify-end mt-3">
+            <button id="historyClear" class="btn btn-error">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+              </svg>
+              <span data-i18n="buttons.clearAll">Clear All</span>
+            </button>
+          </div>
+        </div>
+
+        
+      </div>
+    </div>
+    <script type="module" src="../src/popup.js"></script>
+  </body>
+</html>

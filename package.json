@@ -1,0 +1,20 @@
+{
+  "name": "extension-policy",
+  "version": "1.0.0",
+  "description": "Chrome extension to summarize privacy policies",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "devDependencies": {
+    "@preact/preset-vite": "^2.8.1",
+    "vite": "^5.2.0"
+  },
+  "dependencies": {
+    "dompurify": "^3.2.6",
+    "lucide-preact": "^0.343.0",
+    "marked": "^12.0.2",
+    "preact": "^10.21.0"
+  }
+}

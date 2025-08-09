@@ -1,0 +1,41 @@
+{
+  "manifest_version": 3,
+  "name": "Policy TL;DR",
+  "version": "1.0.0",
+  "description": "Detects privacy policy links and summarizes them via AI.",
+  "permissions": ["storage", "activeTab", "scripting", "contextMenus", "notifications"],
+  "host_permissions": [
+    "http://*/*",
+    "https://*/*",
+    "https://api.x.ai/*",
+    "https://api.openai.com/*"
+  ],
+  "background": {
+    "service_worker": "src/background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "pages/popup.html",
+    "default_icon": "assets/raccoon.png",
+    "default_title": "Policy TL;DR"
+  },
+  "side_panel": {
+    "default_path": "pages/panel.html"
+  },
+  "icons": {
+    "128": "assets/raccoon.png"
+  },
+  "options_page": "pages/options.html",
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "src/detector.js",
+        "src/content-script.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}
