@@ -116,11 +116,12 @@ function setupTabs() {
  */
 function displaySummary(summaryData, showScore = false) {
   const summaryEl = document.getElementById("summaryText");
-  
+
   // Extract summary text and metadata
   let summaryText;
   let privacyScore;
   let scoreExplanation;
+  let fromTosdr = false;
 
   if (typeof summaryData === 'string') {
     // Simple string format
@@ -135,6 +136,7 @@ function displaySummary(summaryData, showScore = false) {
     } else if (summaryData.summary) {
       // Object with summary property only
       summaryText = summaryData.summary;
+      fromTosdr = summaryData.source === 'tosdr';
     } else {
       // Fallback
       summaryText = t("summary.placeholderTitle");
@@ -178,7 +180,11 @@ function displaySummary(summaryData, showScore = false) {
     `;
   } else {
     // Simple summary display without score
-    summaryEl.innerHTML = DOMPurify.sanitize(marked.parse(summaryText));
+    let html = DOMPurify.sanitize(marked.parse(summaryText));
+    if (fromTosdr) {
+      html = `<div class="text-xs text-secondary-600 mb-2">${t("summary.tosdrSource")}</div>` + html;
+    }
+    summaryEl.innerHTML = html;
   }
   
   // Set proper CSS class for styling
@@ -348,9 +354,16 @@ async function setupSummary() {
   let hasCurrentSummary = false;
   const taglineEl = document.getElementById("tagline");
 
+  // Get TOSDR button (already exists in HTML)
+  const tosdrButton = document.getElementById("tosdrButton");
+  
+  // TOSDR functionality
+  let tosdrData = null;
+
   // Get current tab and policy URL
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   currentTabId = tab.id;
+  
   const { url } = await chrome.runtime.sendMessage({
     type: "GET_POLICY_LINK",
     tabId: currentTabId,
@@ -364,17 +377,6 @@ async function setupSummary() {
 
   if (taglineEl) taglineEl.textContent = t("app.subtitle");
   
-  // Load existing summary if available
-  if (url) {
-    const stored = await getSummary(url);
-    if (stored) {
-      displaySummary(stored.summary);
-      hasCurrentSummary = true;
-      // Initialize button in re-summarize mode
-      setButtonModeResummarize();
-    }
-  }
-
   /**
    * Performs policy summarization
    * Handles both new JSON format with privacy scores and legacy string format
@@ -405,14 +407,19 @@ async function setupSummary() {
     let succeeded = false;
     try {
       // Listen for progress updates from background
-      const progressHandler = (msg) => {
-        if (msg?.type !== "SUMMARY_PROGRESS" || msg.tabId !== currentTabId) return;
-        const progressText = document.getElementById("summaryProgressText");
-        if (!progressText) return;
-        if (msg.step === "fetching_policy") progressText.textContent = t("summary.collectingPolicy");
-        else if (msg.step === "policy_fetched") progressText.textContent = t("summary.sendingRequest");
-        else if (msg.step === "sending_request") progressText.textContent = t("summary.waitingModel");
-      };
+        const progressHandler = (msg) => {
+          if (msg?.type !== "SUMMARY_PROGRESS" || msg.tabId !== currentTabId) {
+            return;
+          }
+          const progressText = document.getElementById("summaryProgressText");
+          if (!progressText) {
+            return;
+          }
+          if (msg.step === "fetching_policy") progressText.textContent = t("summary.collectingPolicy");
+          else if (msg.step === "policy_fetched") progressText.textContent = t("summary.sendingRequest");
+          else if (msg.step === "sending_request") progressText.textContent = t("summary.waitingModel");
+          else if (msg.step === "tosdr_found") progressText.textContent = t("summary.usingTosdr");
+        };
       chrome.runtime.onMessage.addListener(progressHandler);
       const res = await chrome.runtime.sendMessage({
         type: "SUMMARIZE_POLICY",
@@ -421,41 +428,54 @@ async function setupSummary() {
       });
       chrome.runtime.onMessage.removeListener(progressHandler);
       
-      if (res.summary) {
-        // Handle new JSON format with privacy score
-        let summaryContent, privacyScore, scoreExplanation;
-        
-        if (typeof res.summary === 'object' && res.summary.privacy_score !== undefined) {
-          // New JSON format
-          privacyScore = res.summary.privacy_score;
-          scoreExplanation = res.summary.score_explanation;
-          summaryContent = res.summary.summary;
+                           if (res.summary) {
+          // Handle new JSON format with privacy score
+          let summaryContent, privacyScore, scoreExplanation;
+          
+          if (typeof res.summary === 'object' && res.summary.privacy_score !== undefined) {
+            // New JSON format
+            privacyScore = res.summary.privacy_score;
+            scoreExplanation = res.summary.score_explanation;
+            summaryContent = res.summary.summary;
+          } else {
+            // Legacy format (string)
+            privacyScore = 5;
+            scoreExplanation = t("summary.scoreNotAvailable");
+            summaryContent = res.summary;
+          }
+          
+          displaySummary(res.summary, true);
+          showNotification(t("alerts.summaryGenerated"), "success");
+          hasCurrentSummary = true;
+          succeeded = true;
+          if (mascotImg) mascotImg.src = "../assets/raccoonhello.png";
+        } else if (res.error) {
+          summaryEl.innerHTML = `
+            <div class="text-center py-8 text-secondary-500">
+              <svg class="w-12 h-12 mx-auto mb-3 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+              </svg>
+              <p class="text-sm">${t("error.failedSummaryTitle")}</p>
+              <p class="text-xs text-secondary-400">${t("error.failedSummarySubtitle")}</p>
+            </div>
+          `;
+          summaryEl.className = "summary-placeholder";
+          showNotification(t("alerts.failedGenerate"), "error");
         } else {
-          // Legacy format (string)
-          privacyScore = 5;
-          scoreExplanation = t("summary.scoreNotAvailable");
-          summaryContent = res.summary;
+          summaryEl.innerHTML = `
+            <div class="text-center py-8 text-secondary-500">
+              <svg class="w-12 h-12 mx-auto mb-3 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+              </svg>
+              <p class="text-sm">${t("error.failedSummaryTitle")}</p>
+              <p class="text-xs text-secondary-400">${t("error.failedSummarySubtitle")}</p>
+            </div>
+          `;
+          summaryEl.className = "summary-placeholder";
+          showNotification(t("alerts.failedGenerate"), "error");
         }
-        
-        displaySummary(res.summary, true);
-        showNotification(t("alerts.summaryGenerated"), "success");
-        hasCurrentSummary = true;
-        succeeded = true;
-        if (mascotImg) mascotImg.src = "../assets/raccoonhello.png";
-      } else {
-        summaryEl.innerHTML = `
-          <div class="text-center py-8 text-secondary-500">
-            <svg class="w-12 h-12 mx-auto mb-3 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"/>
-            </svg>
-            <p class="text-sm">${t("error.failedSummaryTitle")}</p>
-            <p class="text-xs text-secondary-400">${t("error.failedSummarySubtitle")}</p>
-          </div>
-        `;
-        summaryEl.className = "summary-placeholder";
-        showNotification(t("alerts.failedGenerate"), "error");
-      }
     } catch (error) {
+      console.error("Popup: Error during summarization:", error);
       summaryEl.innerHTML = `
         <div class="text-center py-8 text-secondary-500">
           <svg class="w-12 h-12 mx-auto mb-3 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -481,7 +501,185 @@ async function setupSummary() {
     }
   };
 
+  // Load existing summary if available
+  if (url) {
+    const stored = await getSummary(url);
+    if (stored) {
+      displaySummary(stored.summary);
+      hasCurrentSummary = true;
+      // Initialize button in re-summarize mode
+      setButtonModeResummarize();
+    } else {
+      // Don't auto-summarize, just show the button
+      setButtonModeSummarize();
+    }
+  } else {
+    setButtonModeSummarize();
+  }
+  
+  // Always check TOSDR when policy is detected (separate from AI)
+  if (url) {
+    await checkTosdr();
+  } else {
+    showTosdrNoData();
+  }
+
   btn.addEventListener("click", summarize);
+
+  async function checkTosdr() {
+    if (!currentPolicyUrl) return;
+    
+    const sourceDomain = (() => {
+      try { return new URL(currentPolicyUrl).hostname; } catch { return undefined; }
+    })();
+    
+    if (sourceDomain) {
+      const result = await chrome.runtime.sendMessage({
+        type: "CHECK_TOSDR",
+        domain: sourceDomain,
+      });
+      
+      if (result.tosdrData) {
+        tosdrData = result.tosdrData;
+        showTosdrRating();
+      } else {
+        showTosdrNoData();
+      }
+    } else {
+      showTosdrNoData();
+    }
+  }
+  
+  function showTosdrNoData() {
+    tosdrButton.disabled = true;
+    tosdrButton.className = "btn btn-secondary w-full";
+    tosdrButton.innerHTML = `
+      <div class="flex items-center justify-center w-full py-2 px-4">
+        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <span class="text-sm font-medium">${t("summary.noTosdrInfo")}</span>
+      </div>
+    `;
+  }
+  
+  function showTosdrRating() {
+    if (!tosdrData) return;
+    
+    const ratingColor = getRatingColor(tosdrData.rating);
+    const ratingText = t("summary.tosdrRating", { 
+      service: tosdrData.name, 
+      rating: tosdrData.rating 
+    });
+    
+    tosdrButton.disabled = false;
+    tosdrButton.className = "btn w-full";
+        tosdrButton.innerHTML = `
+      <div class="flex items-center justify-center w-full py-2 px-4">
+        <span class="text-sm font-medium text-gray-700">${ratingText}</span>
+        <span class="ml-3 px-3 py-1.5 rounded-full text-sm font-bold ${ratingColor} shadow-sm">${tosdrData.rating}</span>
+      </div>
+    `;
+    
+    // Add click event for TOSDR details
+    tosdrButton.addEventListener('click', showTosdrDetails);
+  }
+  
+  function getRatingColor(rating) {
+    switch (rating) {
+      case 'A': return 'bg-emerald-100 text-emerald-700 border border-emerald-200';
+      case 'B': return 'bg-blue-100 text-blue-700 border border-blue-200';
+      case 'C': return 'bg-amber-100 text-amber-700 border border-amber-200';
+      case 'D': return 'bg-orange-100 text-orange-700 border border-orange-200';
+      case 'E': return 'bg-red-100 text-red-700 border border-red-200';
+      default: return 'bg-gray-100 text-gray-700 border border-gray-200';
+    }
+  }
+  
+  async function showTosdrDetails() {
+    if (!tosdrData || !tosdrData.serviceId) return;
+    
+    try {
+      const res = await chrome.runtime.sendMessage({
+        type: "GET_TOSDR_DETAILS",
+        serviceId: tosdrData.serviceId,
+      });
+      
+      if (res.details) {
+        displayTosdrDetails(res.details);
+      } else {
+        showNotification(t("summary.tosdrLoadError"), "error");
+      }
+    } catch (error) {
+      showNotification(t("summary.tosdrLoadError"), "error");
+    }
+  }
+  
+  function displayTosdrDetails(details) {
+    const tosdrDetailsContainer = document.getElementById("tosdrDetailsContainer");
+    
+    // Create points summary
+    const goodPoints = details.points?.filter(p => p.case?.classification === 'good') || [];
+    const badPoints = details.points?.filter(p => p.case?.classification === 'bad') || [];
+    const neutralPoints = details.points?.filter(p => p.case?.classification === 'neutral') || [];
+    
+    const ratingColor = getRatingColor(details.rating);
+    
+    tosdrDetailsContainer.innerHTML = `
+      <div class="p-4 rounded-lg border bg-white">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-lg font-semibold">${details.name}</h3>
+          <span class="px-3 py-1 rounded-full text-sm font-bold ${ratingColor}">${details.rating}</span>
+        </div>
+        
+        <div class="grid grid-cols-3 gap-4 mb-4 text-center">
+          <div class="bg-green-50 p-2 rounded">
+                       <div class="text-2xl font-bold text-green-600">${goodPoints.length}</div>
+           <div class="text-xs text-green-600">${t("summary.tosdrGoodPoints")}</div>
+          </div>
+          <div class="bg-red-50 p-2 rounded">
+                       <div class="text-2xl font-bold text-red-600">${badPoints.length}</div>
+           <div class="text-xs text-red-600">${t("summary.tosdrBadPoints")}</div>
+          </div>
+          <div class="bg-gray-50 p-2 rounded">
+                       <div class="text-2xl font-bold text-gray-600">${neutralPoints.length}</div>
+           <div class="text-xs text-gray-600">${t("summary.tosdrNeutralPoints")}</div>
+          </div>
+        </div>
+        
+        ${details.points && details.points.length > 0 ? `
+          <div class="space-y-2">
+                         <h4 class="font-medium text-sm text-gray-700">${t("summary.tosdrHighlightedPoints")}</h4>
+            ${details.points.slice(0, 5).map(point => `
+              <div class="text-sm p-2 rounded ${point.case?.classification === 'good' ? 'bg-green-50' : point.case?.classification === 'bad' ? 'bg-red-50' : 'bg-gray-50'}">
+                <div class="font-medium">${point.title}</div>
+                ${point.analysis ? `<div class="text-xs text-gray-600 mt-1">${point.analysis}</div>` : ''}
+              </div>
+            `).join('')}
+          </div>
+        ` : ''}
+        
+        <div class="mt-4 pt-3 border-t">
+          <button class="btn btn-outline btn-sm w-full" onclick="hideTosdrDetails();">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+                         ${t("summary.tosdrCloseDetails")}
+          </button>
+        </div>
+      </div>
+    `;
+    
+    tosdrDetailsContainer.classList.remove("hidden");
+  }
+  
+  function hideTosdrDetails() {
+    const tosdrDetailsContainer = document.getElementById("tosdrDetailsContainer");
+    if (tosdrDetailsContainer) {
+      tosdrDetailsContainer.classList.add("hidden");
+      tosdrDetailsContainer.innerHTML = "";
+    }
+  }
 
   // Helpers to manage button UI state
   function setButtonStateLoading() {

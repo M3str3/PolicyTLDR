@@ -7,6 +7,7 @@
  * @returns {string[]} Array of matching URLs.
  */
 function findPrivacyLinks(doc) {
+  console.log("Detector: Starting privacy links search");
   const selectors = [
     'a[href*="privacy"]',
     'a[href*="policy"]',
@@ -18,19 +19,25 @@ function findPrivacyLinks(doc) {
     'a[href*="datenschutz"]',
   ];
   const results = new Set();
+  console.log("Detector: Checking selectors:", selectors);
   selectors.forEach((sel) => {
-    doc.querySelectorAll(sel).forEach((a) => {
+    const elements = doc.querySelectorAll(sel);
+    console.log("Detector: Found", elements.length, "elements for selector:", sel);
+    elements.forEach((a) => {
       const text = a.textContent.toLowerCase();
+      console.log("Detector: Checking element text:", text.substring(0, 50));
       if (
         /privacy|política|legal|terms|términos|confidentialité|confidentialite|vie privée|vie privee|politique|datenschutz/.test(
           text,
         )
       ) {
+        console.log("Detector: Adding privacy link:", a.href);
         results.add(a.href);
       }
     });
   });
   if (results.size === 0) {
+    console.log("Detector: No links found with selectors, trying text search");
     const bodyText = doc.body?.textContent || "";
     const urlRegex = /(https?:\/\/[^\s]+)/g;
     let match;
@@ -39,11 +46,14 @@ function findPrivacyLinks(doc) {
       if (
         /privacy|terms|legal|confidentialite|politique|datenschutz/i.test(url)
       ) {
+        console.log("Detector: Found privacy URL in text:", url);
         results.add(url);
       }
     }
   }
-  return Array.from(results);
+  const finalResults = Array.from(results);
+  console.log("Detector: Final privacy links found:", finalResults);
+  return finalResults;
 }
 
 // Expose as global for non-module content scripts

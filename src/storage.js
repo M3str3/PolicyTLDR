@@ -87,7 +87,8 @@ export async function saveSummary(url, summary, hash) {
  */
 export async function getSummary(url) {
   const { summaries = {} } = await chrome.storage.local.get("summaries");
-  return summaries[url] || null;
+  const result = summaries[url] || null;
+  return result;
 }
 
 /**

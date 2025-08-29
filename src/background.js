@@ -14,6 +14,7 @@
  */
 
 import { summarizePolicy } from "./ai.js";
+import { lookupTosdr, getTosdrServiceDetails } from "./tosdr.js";
 import {
   getSummary,
   saveSummary,
@@ -276,7 +277,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     (async () => {
       const url = message.links[0];
       const domain = new URL(url).hostname;
-      if (await isDomainIgnored(domain)) return;
+      if (await isDomainIgnored(domain)) {
+        return;
+      }
       if (sender.tab?.id) {
         policyLinks.set(sender.tab.id, url);
         setIconState("alert", sender.tab.id);
@@ -288,6 +291,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const url = policyLinks.get(message.tabId) || "";
     sendResponse({ url });
   } 
+  // Handle TOSDR check requests (separate from AI summarization)
+  else if (message.type === "CHECK_TOSDR") {
+    (async () => {
+      try {
+        const result = await lookupTosdr(message.domain);
+        if (result) {
+          sendResponse({ tosdrData: result });
+        } else {
+          sendResponse({ tosdrData: null });
+        }
+      } catch (error) {
+        sendResponse({ tosdrData: null });
+      }
+    })();
+    return true; // Keep message channel open for async response
+  }
   // Handle policy summarization requests
   else if (message.type === "SUMMARIZE_POLICY") {
     (async () => {
@@ -328,17 +347,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         
         // Only generate new summary if content has changed
         if (!existing || existing.hash !== hash) {
-          if (existing) await removeSummary(message.url);
+          if (existing) {
+            await removeSummary(message.url);
+          }
+          
           chrome.runtime.sendMessage({
             type: "SUMMARY_PROGRESS",
             step: "sending_request",
             tabId: message.tabId,
             url: message.url,
           });
-          const sourceDomain = (() => {
-            try { return new URL(message.url).hostname; } catch { return undefined; }
-          })();
-          summary = await summarizePolicy(bodyText, lang, { sourceDomain });
+          
+          // Use AI summarization (not TOSDR)
+          summary = await summarizePolicy(bodyText, lang);
           await saveSummary(message.url, summary, hash);
         }
         
@@ -347,7 +368,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           setIconState("default", message.tabId);
         }
       } catch (err) {
-        console.error("Failed to summarize policy", err);
+        console.error("Background: Failed to summarize policy", err);
         if (String(err?.message || "").includes("API key not set")) {
           showApiKeyMissingNotification();
           sendResponse({ error: "NO_API_KEY" });
@@ -361,6 +382,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             message: "Failed to download policy.",
           });
         }
+        sendResponse({ error: "FAILED" });
+      }
+    })();
+    return true; // Indicates async response
+  }
+  // Handle TOSDR service details request
+  else if (message.type === "GET_TOSDR_DETAILS") {
+    (async () => {
+      try {
+        const details = await getTosdrServiceDetails(message.serviceId);
+        sendResponse({ details });
+      } catch (err) {
+        console.error("Background: Failed to get TOSDR details", err);
         sendResponse({ error: "FAILED" });
       }
     })();
